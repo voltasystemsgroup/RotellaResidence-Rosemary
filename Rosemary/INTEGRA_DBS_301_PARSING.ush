@@ -1,0 +1,102 @@
+[BEGIN]
+  Version=1
+[END]
+[BEGIN]
+  ObjTp=FSgntr
+  Sgntr=UserSPlus
+  RelVrs=1
+  IntStrVrs=1
+  SPlusVrs=4.04.01
+  CrossCplrVrs=1.3
+[END]
+[BEGIN]
+  ObjTp=Hd
+[END]
+[BEGIN]
+  ObjTp=Symbol
+  Exclusions=1,19,20,21,88,89,167,168,179,213,214,215,216,217,225,226,248,249,266,267,310,718,756,854,
+  Exclusions_CDS=5
+  Inclusions_CDS=6
+  Name=INTEGRA_DBS_301_PARSING
+  SmplCName=INTEGRA_DBS_301_PARSING.usp
+  Code=1
+  SysRev5=3.137
+  InputCue1=DEBUG
+  InputSigType1=Digital
+  OutputCue1=POWER_FB
+  OutputSigType1=Digital
+  InputList2Cue1=RX$
+  InputList2SigType1=Serial
+  OutputList2Cue1=TRANSPORT
+  OutputList2SigType1=Analog
+  OutputList2Cue2=MEDIA
+  OutputList2SigType2=Analog
+  OutputList2Cue3=DIMMER
+  OutputList2SigType3=Analog
+  OutputList2Cue4=ASPECT
+  OutputList2SigType4=Analog
+  OutputList2Cue5=HDMI_RESOLUTION
+  OutputList2SigType5=Analog
+  OutputList2Cue6=HDMI_SETUP
+  OutputList2SigType6=Analog
+  OutputList2Cue7=LANGUAGE
+  OutputList2SigType7=Analog
+  OutputList2Cue8=TITLE_CURRENT
+  OutputList2SigType8=Analog
+  OutputList2Cue9=TITLE_TOTAL
+  OutputList2SigType9=Analog
+  OutputList2Cue10=CHAPTER_CURRENT
+  OutputList2SigType10=Analog
+  OutputList2Cue11=CHAPTER_TOTAL
+  OutputList2SigType11=Analog
+  OutputList2Cue12=TIME_HOURS
+  OutputList2SigType12=Analog
+  OutputList2Cue13=TIME_MINUTES
+  OutputList2SigType13=Analog
+  OutputList2Cue14=TIME_SECONDS
+  OutputList2SigType14=Analog
+  OutputList2Cue15=TIME_TOTALSEC
+  OutputList2SigType15=Analog
+  ParamCue1=[Reference Name]
+  MinVariableInputs=1
+  MaxVariableInputs=1
+  MinVariableInputsList2=1
+  MaxVariableInputsList2=1
+  MinVariableOutputs=1
+  MaxVariableOutputs=1
+  MinVariableOutputsList2=15
+  MaxVariableOutputsList2=15
+  MinVariableParams=0
+  MaxVariableParams=0
+  Expand=expand_separately
+  Expand2=expand_separately
+  ProgramTree=Logic
+  SymbolTree=10
+  Hint=SEE INTEGRA DBS-30.1 MODULE
+  PdfHelp=
+  HelpID= 
+  Render=4
+  Smpl-C=16
+  CompilerCode=-48
+  CompilerParamCode=27
+  CompilerParamCode5=14
+  NumFixedParams=1
+  Pp1=1
+  MPp=1
+  NVStorage=10
+  ParamSigType1=String
+  SmplCInputCue1=o#
+  SmplCOutputCue1=i#
+  SmplCInputList2Cue1=an#
+  SmplCOutputList2Cue1=ai#
+  SPlus2CompiledName=S2_INTEGRA_DBS_301_PARSING
+  SymJam=NonExclusive
+  FileName=INTEGRA_DBS_301_PARSING.ush
+  SIMPLPlusModuleEncoding=0
+[END]
+[BEGIN]
+  ObjTp=Dp
+  H=1
+  Tp=1
+  NoS=False
+[END]

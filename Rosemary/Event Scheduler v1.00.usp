@@ -1,0 +1,604 @@
+
+
+
+#DEFINE_CONSTANT	MAX_EVENTS		9
+#DEFINE_CONSTANT	DOW_SUNDAY		1
+#DEFINE_CONSTANT	DOW_MONDAY		2
+#DEFINE_CONSTANT	DOW_TUESDAY		3
+#DEFINE_CONSTANT	DOW_WEDNESDAY	4
+#DEFINE_CONSTANT	DOW_THURSDAY	5
+#DEFINE_CONSTANT	DOW_FRIDAY		6
+#DEFINE_CONSTANT	DOW_SATURDAY	7
+
+
+
+ANALOG_INPUT 	CURRENT_YEAR,
+				CURRENT_MONTH,
+				CURRENT_DAY,
+				CURRENT_DAY_OF_WEEK,
+				CURRENT_HOUR,
+				CURRENT_MINUTE,
+				CURRENT_SECOND,
+				SUNRISE_HOUR,
+				SUNRISE_MINUTE,
+				SUNSET_HOUR,
+				SUNSET_MINUTE;
+				
+DIGITAL_INPUT	REFRESH_FEEDBACK[ MAX_EVENTS ];				
+				
+ANALOG_INPUT	EVENT_ENABLE[ MAX_EVENTS ],
+				EVENT_HOUR[ MAX_EVENTS ],
+				EVENT_MINUTE[ MAX_EVENTS ],
+				EVENT_SUNRISE[ MAX_EVENTS ],
+				EVENT_SUNSET[ MAX_EVENTS ],
+				EVENT_OFFSET[ MAX_EVENTS ],
+				EVENT_REPEAT_SUNDAY[ MAX_EVENTS ],
+				EVENT_REPEAT_MONDAY[ MAX_EVENTS ],
+				EVENT_REPEAT_TUESDAY[ MAX_EVENTS ],
+				EVENT_REPEAT_WEDNESDAY[ MAX_EVENTS ],
+				EVENT_REPEAT_THURSDAY[ MAX_EVENTS ],
+				EVENT_REPEAT_FRIDAY[ MAX_EVENTS ],
+				EVENT_REPEAT_SATURDAY[ MAX_EVENTS ];
+				
+STRING_OUTPUT	SUNRISE_TIME$,
+				SUNSET_TIME$;								
+
+DIGITAL_OUTPUT	EVENT_TRIGGER[ MAX_EVENTS ];
+				
+ANALOG_OUTPUT	CURRENT_DAY_OF_WEEK_OUT,
+				EVENT_ENABLE_OUT[ MAX_EVENTS ];
+
+STRING_OUTPUT	EVENT_TIME$[ MAX_EVENTS ],
+				EVENT_REPEAT$[ MAX_EVENTS ];
+
+
+
+Function UpdateDayOfWeek( )
+{
+	String sDayOfWeek[ 32 ];
+	
+	sDayOfWeek = Day( );
+	
+		 If( sDayOfWeek = "Sunday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_SUNDAY; }
+	Else If( sDayOfWeek = "Monday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_MONDAY; }
+	Else If( sDayOfWeek = "Tuesday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_TUESDAY; }
+	Else If( sDayOfWeek = "Wednesday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_WEDNESDAY; }
+	Else If( sDayOfWeek = "Thursday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_THURSDAY; }
+	Else If( sDayOfWeek = "Friday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_FRIDAY; }
+	Else If( sDayOfWeek = "Saturday" )	{ CURRENT_DAY_OF_WEEK_OUT = DOW_SATURDAY; }
+}
+
+
+
+
+
+String_Function CreateTimeString( Integer iHour, Integer iMinute )
+{
+	String sTimeString[ 255 ], sAMPM[ 2 ], sHour[ 2 ], sMinute[ 2 ];
+		
+	If( iHour >= 0 && iHour <= 11 )
+	{
+		If( iHour = 0 )
+			sHour = "12";
+		Else
+			sHour = IToA( iHour );
+		
+		sAMPM = "AM";		 
+	}
+	Else
+	{
+		If( iHour = 12 )
+			sHour = "12";
+		Else
+			sHour = IToA( iHour - 12 );
+		
+		sAMPM = "PM";
+	}
+	
+	If( iMinute < 10 )
+	{
+		sMinute = "0" + IToA( iMinute );		
+	}
+	Else
+	{
+		sMinute = IToA( iMinute );
+	}	
+	
+	MakeString( sTimeString, "%s:%s %s", sHour, sMinute, sAMPM );
+	
+	Return( sTimeString );	
+}
+
+String_Function CreateOffsetString( Integer iSunrise,
+									Integer iSunset,
+									Integer iOffset )
+{
+	String sOffsetString[ 255 ], sHour[ 2 ], sMinute[ 2 ];
+	Integer iTimeHour, iTimeMinute, iOffsetHours, iOffsetMinutes;
+	
+	sOffsetString = "";
+	
+	If( iSunrise = 1 )
+	{
+		sOffsetString = "Sunrise ";
+		iTimeHour = SUNRISE_HOUR;
+		iTimeMinute = SUNRISE_MINUTE;
+	}
+	Else If( iSunset = 1 )
+	{
+		sOffsetString = "Sunset ";
+		iTimeHour = SUNSET_HOUR;
+		iTimeMinute = SUNSET_MINUTE;
+	}
+	
+			
+	
+	If( iOffset != 0 )
+	{
+		If( iOffset > 0 && iOffset < 32768 )
+		{
+			iOffsetHours = iOffset / 60;
+			iOffsetMinutes = iOffset % 60;
+			
+			sOffsetString = sOffsetString + "+ ";
+			
+			iTimeHour = iTimeHour + iOffsetHours % 24;
+			
+			iTimeMinute = iTimeMinute + iOffsetMinutes;
+			
+			If( iTimeMinute >= 60 )
+			{
+				iTimeHour = ( iTimeHour + 1 ) % 24;
+				iTimeMinute = iTimeMinute % 60;	
+			}
+		}
+		Else If( iOffset > 32767 && iOffset < 65536 )
+		{
+			iOffsetHours = ( 65536 - iOffset ) / 60;
+			iOffsetMinutes = ( 65536 - iOffset ) % 60;
+			
+			sOffsetString = sOffsetString + "- ";
+			
+			If( iOffsetHours > iTimeHour )
+			{
+				iTimeHour = 24 - ( iOffsetHours - iTimeHour );
+			}
+			Else
+			{
+				iTimeHour = iTimeHour - iOffsetHours;
+			}
+			
+			If( iOffsetMinutes > iTimeMinute )
+			{
+				If( iTimeHour = 1 )
+				{
+				    iTimeHour = 23;
+				}
+				Else
+				{
+					iTimeHour = iTimeHour - 1;
+				}				
+				
+				iTimeMinute = 60 - ( iOffsetMinutes - iTimeMinute );	
+			}
+			Else
+			{
+			    iTimeMinute = iTimeMinute - iOffsetMinutes;
+			}
+		}
+		
+		sHour = IToA( iOffsetHours );
+		If( iOffsetMinutes < 10 )
+		{
+			sMinute = "0" + IToA( iOffsetMinutes );		
+		}
+		Else
+		{
+			sMinute = IToA( iOffsetMinutes );
+		}
+		
+		sOffsetString = sOffsetString + sHour + ":" + sMinute;// + " (" + CreateTimeString( iTimeHour, iTimeMinute ) + ")"; 
+		
+		
+	}
+	Else
+	{
+		//sOffsetString = sOffsetString + " (" + CreateTimeString( iTimeHour, iTimeMinute ) + ")";
+	}
+	
+	Return( sOffsetString );
+}
+
+String_Function CreateRepeatString( Integer iSunday,
+									Integer iMonday,
+									Integer iTuesday,
+									Integer iWednesday,
+									Integer iThursday,
+									Integer iFriday,
+									Integer iSaturday )
+{
+	String sRepeatString[ 255 ];
+	
+	
+	If( 		iSunday		= 0 &&
+				iMonday 	= 0 &&
+				iTuesday 	= 0 &&
+				iWednesday 	= 0 &&
+				iThursday 	= 0 &&
+				iFriday 	= 0 &&
+				iSaturday 	= 0		)
+	{
+		sRepeatString = "Today";		
+	}
+	Else If(	iSunday +
+				iMonday +
+				iTuesday +
+				iWednesday +
+				iThursday +
+				iFriday +
+				iSaturday 	= 1 )
+	{
+		sRepeatString = "Every ";
+		If( 	 iSunday 	= 1 ){ sRepeatString = sRepeatString + "Sunday"; 	}				
+		Else If( iMonday 	= 1 ){ sRepeatString = sRepeatString + "Monday"; 	}				
+		Else If( iTuesday 	= 1 ){ sRepeatString = sRepeatString + "Tuesday"; 	}				
+		Else If( iWednesday = 1 ){ sRepeatString = sRepeatString + "Wednesday"; }				
+		Else If( iThursday 	= 1 ){ sRepeatString = sRepeatString + "Thursday"; 	}				
+		Else If( iFriday 	= 1 ){ sRepeatString = sRepeatString + "Friday"; 	}				
+		Else If( iSaturday 	= 1 ){ sRepeatString = sRepeatString + "Saturday"; 	}				
+	}
+	Else If( 	iSunday		= 1 &&
+				iMonday 	= 0 &&
+				iTuesday 	= 0 &&
+				iWednesday 	= 0 &&
+				iThursday 	= 0 &&
+				iFriday 	= 0 &&
+				iSaturday 	= 1		)
+	{
+		sRepeatString = "Weekends";		
+	}
+	Else If( 	iSunday		= 0 &&
+				iMonday 	= 1 &&
+				iTuesday 	= 1 &&
+				iWednesday 	= 1 &&
+				iThursday 	= 1 &&
+				iFriday 	= 1 &&
+				iSaturday 	= 0		)
+	{
+		sRepeatString = "Weekdays";		
+	}
+	Else If( 	iSunday		= 1 &&
+				iMonday 	= 1 &&
+				iTuesday 	= 1 &&
+				iWednesday 	= 1 &&
+				iThursday 	= 1 &&
+				iFriday 	= 1 &&
+				iSaturday 	= 1		)
+	{
+		sRepeatString = "Every day";		
+	}
+	Else
+	{
+		sRepeatString = "";			
+		If( 	 iSunday	= 1 ){ sRepeatString = sRepeatString + "Sun ";	}
+		If( 	 iMonday 	= 1 ){ sRepeatString = sRepeatString + "Mon "; 	}				
+		If( 	 iTuesday 	= 1 ){ sRepeatString = sRepeatString + "Tue "; 	}				
+		If( 	 iWednesday = 1 ){ sRepeatString = sRepeatString + "Wed "; 	}				
+		If( 	 iThursday 	= 1 ){ sRepeatString = sRepeatString + "Thu ";	}				
+		If( 	 iFriday 	= 1 ){ sRepeatString = sRepeatString + "Fri "; 	}				
+		If( 	 iSaturday 	= 1 ){ sRepeatString = sRepeatString + "Sat "; 	}
+	}
+	
+	Return( sRepeatString );	
+}
+
+Integer_Function EventRepeats( Integer iEventIndex )
+{
+	Integer iEventRepeats;
+	
+	iEventRepeats = 0;
+	
+	If( 	EVENT_REPEAT_SUNDAY[ iEventIndex ] 		+
+			EVENT_REPEAT_MONDAY[ iEventIndex ] 		+
+			EVENT_REPEAT_TUESDAY[ iEventIndex ] 	+
+			EVENT_REPEAT_WEDNESDAY[ iEventIndex ] 	+
+			EVENT_REPEAT_THURSDAY[ iEventIndex ] 	+
+			EVENT_REPEAT_FRIDAY[ iEventIndex ] 		+
+			EVENT_REPEAT_SATURDAY[ iEventIndex ] 	> 0 )
+	{
+		iEventRepeats = 1;
+	}
+	
+	Return( iEventRepeats );
+}
+
+Integer_Function EventOccursToday( Integer iEventIndex )
+{
+	Integer iEventOccursToday;
+	
+	iEventOccursToday = 0;
+	
+	If(	( ( CURRENT_DAY_OF_WEEK = DOW_SUNDAY ) 		&& ( EVENT_REPEAT_SUNDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( CURRENT_DAY_OF_WEEK = DOW_MONDAY ) 		&& ( EVENT_REPEAT_MONDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( CURRENT_DAY_OF_WEEK = DOW_TUESDAY ) 	&& ( EVENT_REPEAT_TUESDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( CURRENT_DAY_OF_WEEK = DOW_WEDNESDAY ) 	&& ( EVENT_REPEAT_WEDNESDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( CURRENT_DAY_OF_WEEK = DOW_THURSDAY ) 	&& ( EVENT_REPEAT_THURSDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( CURRENT_DAY_OF_WEEK = DOW_FRIDAY ) 		&& ( EVENT_REPEAT_FRIDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( CURRENT_DAY_OF_WEEK = DOW_SATURDAY ) 	&& ( EVENT_REPEAT_SATURDAY[ iEventIndex ] 	= 1 ) ) ||
+		( ( EventRepeats( iEventIndex ) = 0 )		&& ( EVENT_ENABLE[ iEventIndex ] 			= 1 ) )		)
+	{ 
+		iEventOccursToday = 1; 
+	}
+	
+	Return( iEventOccursToday );		
+}
+
+Integer_Function EventIsTimeEvent( Integer iEventIndex )
+{
+	Integer iEventIsTimeEvent;
+	
+	iEventIsTimeEvent = 0;
+	
+	If( EVENT_SUNRISE[ iEventIndex ] + EVENT_SUNSET[ iEventIndex ] = 0 )
+	{
+		iEventIsTimeEvent = 1;
+	}
+	
+	Return( iEventIsTimeEvent );
+}
+
+Integer_Function EventIsOffsetEvent( Integer iEventIndex )
+{
+	Integer iEventIsOffsetEvent;
+	
+	iEventIsOffsetEvent = 0;
+	
+	If( EVENT_SUNRISE[ iEventIndex ] + EVENT_SUNSET[ iEventIndex ] = 1 )
+	{
+		iEventIsOffsetEvent = 1;
+	}
+	
+	Return( iEventIsOffsetEvent );
+}
+
+Integer_Function EventIsEnabled( Integer iEventIndex )
+{
+	Return( EVENT_ENABLE[ iEventIndex ] );	
+}
+	
+	
+	
+	
+			
+		
+Integer_Function EventIsNow( Integer iEventIndex )
+{
+	Integer iEventIsNow, iTimeHour, iTimeMinute, iOffsetHours, iOffsetMinutes;
+	
+	iEventIsNow = 0;
+	
+	If( EventIsTimeEvent( iEventIndex ) )
+	{
+		iTimeHour = EVENT_HOUR[ iEventIndex ];
+		iTimeMinute = EVENT_MINUTE[ iEventIndex ];					
+	}
+	Else If( EventIsOffsetEvent( iEventIndex ) )
+	{
+		If( EVENT_SUNRISE[ iEventIndex ] )
+		{
+			iTimeHour = SUNRISE_HOUR;
+			iTimeMinute = SUNRISE_MINUTE;			
+		}
+		Else If( EVENT_SUNSET[ iEventIndex ] )
+		{
+			iTimeHour = SUNSET_HOUR;
+			iTimeMinute = SUNSET_MINUTE;
+		}
+		
+		If( EVENT_OFFSET[ iEventIndex ] > 0 && EVENT_OFFSET[ iEventIndex ] < 32768 )
+		{
+			iOffsetHours = EVENT_OFFSET[ iEventIndex ] / 60;
+			iOffsetMinutes = EVENT_OFFSET[ iEventIndex ] % 60;
+			
+			iTimeHour = iTimeHour + iOffsetHours % 24;
+			
+			iTimeMinute = iTimeMinute + iOffsetMinutes;
+			
+			If( iTimeMinute >= 60 )
+			{
+				iTimeHour = ( iTimeHour + 1 ) % 24;
+				iTimeMinute = iTimeMinute % 60;	
+			}
+		}
+		Else If( EVENT_OFFSET[ iEventIndex ] > 32767 && EVENT_OFFSET[ iEventIndex ] < 65536 )
+		{
+			iOffsetHours = ( 65536 - EVENT_OFFSET[ iEventIndex ] ) / 60;
+			iOffsetMinutes = ( 65536 - EVENT_OFFSET[ iEventIndex ] ) % 60;
+			
+			If( iOffsetHours > iTimeHour )
+			{
+				iTimeHour = 24 - ( iOffsetHours - iTimeHour );
+			}
+			Else
+			{
+				iTimeHour = iTimeHour - iOffsetHours;
+			}
+			
+			If( iOffsetMinutes > iTimeMinute )
+			{
+				If( iTimeHour = 1 )
+				{
+				    iTimeHour = 23;
+				}
+				Else
+				{
+					iTimeHour = iTimeHour - 1;
+				}				
+				
+				iTimeMinute = 60 - ( iOffsetMinutes - iTimeMinute );	
+			}
+			Else
+			{
+			    iTimeMinute = iTimeMinute - iOffsetMinutes;
+			}
+		}
+	}
+	Else
+	{
+		//this should never happen
+		Print( "Anomoly In Event Scheduler!!\n" );
+		iTimeHour = 0;
+		iTimeMinute = 0;
+	}	
+	
+	If( ( CURRENT_HOUR = iTimeHour 		) &&
+		( CURRENT_MINUTE = iTimeMinute 	) 	)
+	{
+		iEventIsNow = 1;			
+	}
+	
+	Return( iEventIsNow );		
+}
+
+
+CHANGE CURRENT_DAY
+{
+	UpdateDayOfWeek( );
+}
+
+
+CHANGE CURRENT_MINUTE
+{
+	Integer iEventIndex;
+	
+	For( iEventIndex = 2 To MAX_EVENTS )
+	{
+		If( EventIsEnabled( iEventIndex ) && EventOccursToday( iEventIndex ) && EventIsNow( iEventIndex ) )
+		{
+			Pulse( 1, EVENT_TRIGGER[ iEventIndex ] );
+			
+			If( EventRepeats( iEventIndex ) = 0 )
+			{
+				EVENT_ENABLE_OUT[ iEventIndex ] = 0;			
+			}				
+		}				
+	}		
+}
+
+PUSH REFRESH_FEEDBACK
+{
+	Integer iEventIndex;
+	
+	iEventIndex = GetLastModifiedArrayIndex( );
+	
+	If( EventIsTimeEvent( iEventIndex ) )
+	{
+		EVENT_TIME$[ iEventIndex ] = CreateTimeString( 		EVENT_HOUR[ iEventIndex ], 
+															EVENT_MINUTE[ iEventIndex ] );	
+	}
+	Else If( EventIsOffsetEvent( iEventIndex ) )
+	{
+		EVENT_TIME$[ iEventIndex ] =  CreateOffsetString( 	EVENT_SUNRISE[ iEventIndex ],
+															EVENT_SUNSET[ iEventIndex ],
+															EVENT_OFFSET[ iEventIndex ] );
+	}
+	
+	If( EVENT_ENABLE[ iEventIndex ] )
+	{
+		EVENT_REPEAT$[ iEventIndex ] = CreateRepeatString( 	EVENT_REPEAT_SUNDAY[ iEventIndex ],
+															EVENT_REPEAT_MONDAY[ iEventIndex ],
+															EVENT_REPEAT_TUESDAY[ iEventIndex ],
+															EVENT_REPEAT_WEDNESDAY[ iEventIndex ],
+															EVENT_REPEAT_THURSDAY[ iEventIndex ],
+															EVENT_REPEAT_FRIDAY[ iEventIndex ],
+															EVENT_REPEAT_SATURDAY[ iEventIndex ] );
+	}
+	Else
+	{
+		EVENT_REPEAT$[ iEventIndex ] = "";
+	}	
+}
+
+/*
+
+CHANGE 	EVENT_HOUR, 
+		EVENT_MINUTE,
+		EVENT_SUNRISE,
+		EVENT_SUNSET,
+		EVENT_OFFSET
+{
+	Integer iEventIndex;
+	
+	iEventIndex = GetLastModifiedArrayIndex( );
+	
+	If( EventIsTimeEvent( iEventIndex ) )
+	{
+		EVENT_TIME$[ iEventIndex ] = CreateTimeString( 		EVENT_HOUR[ iEventIndex ], 
+															EVENT_MINUTE[ iEventIndex ] );	
+	}
+	Else If( EventIsOffsetEvent( iEventIndex ) )
+	{
+		EVENT_TIME$[ iEventIndex ] =  CreateOffsetString( 	EVENT_SUNRISE[ iEventIndex ],
+															EVENT_SUNSET[ iEventIndex ],
+															EVENT_OFFSET[ iEventIndex ] );
+	}  	
+}
+
+
+CHANGE 	EVENT_REPEAT_SUNDAY,
+		EVENT_REPEAT_MONDAY,
+		EVENT_REPEAT_TUESDAY,
+		EVENT_REPEAT_WEDNESDAY,
+		EVENT_REPEAT_THURSDAY,
+		EVENT_REPEAT_FRIDAY,
+		EVENT_REPEAT_SATURDAY,
+		EVENT_ENABLE
+{
+	Integer iEventIndex;
+	
+	iEventIndex = GetLastModifiedArrayIndex( );
+	
+	If( EVENT_ENABLE[ iEventIndex ] )
+	{
+		EVENT_REPEAT$[ iEventIndex ] = CreateRepeatString( 	EVENT_REPEAT_SUNDAY[ iEventIndex ],
+															EVENT_REPEAT_MONDAY[ iEventIndex ],
+															EVENT_REPEAT_TUESDAY[ iEventIndex ],
+															EVENT_REPEAT_WEDNESDAY[ iEventIndex ],
+															EVENT_REPEAT_THURSDAY[ iEventIndex ],
+															EVENT_REPEAT_FRIDAY[ iEventIndex ],
+															EVENT_REPEAT_SATURDAY[ iEventIndex ] );
+	}
+	Else
+	{
+		EVENT_REPEAT$[ iEventIndex ] = "Never";
+	}
+} 
+
+*/
+
+
+CHANGE 	SUNRISE_HOUR,
+		SUNRISE_MINUTE
+{
+	SUNRISE_TIME$ = CreateTimeString( SUNRISE_HOUR, SUNRISE_MINUTE );	
+}
+
+CHANGE 	SUNSET_HOUR,
+		SUNSET_MINUTE
+{
+	SUNSET_TIME$ = CreateTimeString( SUNSET_HOUR, SUNSET_MINUTE );	
+}
+
+
+
+
+
+Function Main( )
+{
+	UpdateDayOfWeek( ); 	
+}
+
+
+
+				
+				

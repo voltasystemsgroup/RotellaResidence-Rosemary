@@ -1,0 +1,7 @@
+<Device Model="MC3" Name="MC3.">
+   <Network Type="Cresnet" Id="01"/>
+   <Network Type="Ethernet" Id="02"/>
+   <Network Type="RF" Id="03">
+      <Device Model="HR-150,HRI-150" DeviceId="03" Name="HR-150 [LIVINGRM]"/>
+   </Network>
+</Device>
